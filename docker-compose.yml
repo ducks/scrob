@@ -1,0 +1,20 @@
+services:
+  scrob:
+    build: .
+    container_name: scrob
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:/app/data/scrob.db
+      - HOST=0.0.0.0
+      - PORT=3000
+      - RUST_LOG=scrob=info,tower_http=debug
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
