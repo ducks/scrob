@@ -1,4 +1,35 @@
 use crate::db::{models::User, DbPool};
+use axum::http::{HeaderMap, StatusCode};
+
+/// Authenticated user
+#[derive(Debug, Clone)]
+pub struct AuthUser {
+    pub id: i64,
+    pub username: String,
+    pub is_admin: bool,
+}
+
+impl AuthUser {
+    pub async fn from_headers(pool: &DbPool, headers: &HeaderMap) -> Result<Self, StatusCode> {
+        let auth_header = headers
+            .get("authorization")
+            .and_then(|h| h.to_str().ok())
+            .ok_or(StatusCode::UNAUTHORIZED)?;
+
+        let token = extract_token_from_header(auth_header).ok_or(StatusCode::UNAUTHORIZED)?;
+
+        let user = get_user_by_token(pool, &token)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or(StatusCode::UNAUTHORIZED)?;
+
+        Ok(AuthUser {
+            id: user.id,
+            username: user.username,
+            is_admin: user.is_admin,
+        })
+    }
+}
 
 /// Extract token from Authorization: Bearer <token> header
 pub fn extract_token_from_header(auth_header: &str) -> Option<String> {
