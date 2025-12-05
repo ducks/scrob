@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.82 as builder
+FROM rust:1.83 as builder
 
 WORKDIR /app
 
@@ -27,8 +27,9 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /app/target/release/scrob /app/scrob
 
-# Copy migrations
+# Copy migrations and scripts
 COPY migrations ./migrations
+COPY scripts ./scripts
 
 # Set environment variables
 ENV HOST=0.0.0.0
