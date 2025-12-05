@@ -1,25 +1,109 @@
 # Deployment Guide
 
-## Local Desktop Deployment
+## Quick Start with Docker (Recommended)
 
-This guide covers running scrob as a systemd service on your local desktop
-for personal use.
+The easiest way to run scrob is with Docker Compose, which handles everything
+automatically.
 
-### Why Local Deployment?
+### Prerequisites
 
-For single-user scrobbling, running locally is simpler:
-- No need for VPS costs or management
-- SQLite is perfect for single-user load
-- Direct access from your desktop music players
-- Easy to backup (just copy the database file)
+- Docker and Docker Compose installed
+- PostgreSQL database (see below)
+
+### Setup
+
+1. **Set up PostgreSQL**
+
+Use Docker Compose to run both scrob and Postgres:
+
+```bash
+cd ~/dev/scrob
+
+# Create docker-compose.yml (see example below)
+# Edit environment variables as needed
+docker-compose up -d
+```
+
+Example `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: scrob
+      POSTGRES_USER: scrob
+      POSTGRES_PASSWORD: your_secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  scrob:
+    build: .
+    environment:
+      DATABASE_URL: postgres://scrob:your_secure_password@postgres:5432/scrob
+      HOST: 0.0.0.0
+      PORT: 3000
+      RUST_LOG: scrob=info
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+```
+
+2. **Create your user**
+
+```bash
+# Get a shell in the scrob container
+docker-compose exec scrob /bin/bash
+
+# Run the create user script
+./scripts/create_user.sh your_username your_password true
+```
+
+3. **Access scrob**
+
+Visit `http://localhost:3000` and login with your credentials.
+
+That's it! Docker handles building, migrations, and running the service.
+
+---
+
+## Manual Installation (Alternative)
+
+If you prefer to run without Docker, use the automated setup script:
 
 ### Prerequisites
 
 - Linux system with systemd
-- Nix installed (or Rust 1.82+ and SQLite3)
-- Port 3000 available (or choose another)
+- PostgreSQL installed and running
+- Nix installed (or Rust 1.82+)
 
-## Setup Steps
+### Quick Setup Script
+
+```bash
+cd ~/dev/scrob
+./scripts/install.sh
+```
+
+This script will:
+1. Build the release binary
+2. Install to `/opt/scrob`
+3. Run database migrations
+4. Create systemd service
+5. Prompt you to create a user
+
+See [scripts/install.sh](scripts/install.sh) for details.
+
+### Manual Setup Steps
+
+If you prefer to do it manually:
 
 ### 1. Build the Server
 
@@ -128,6 +212,8 @@ curl -X POST http://localhost:3000/login \
   -H "Content-Type: application/json" \
   -d '{"username":"YOUR_USERNAME","password":"YOUR_PASSWORD"}'
 ```
+
+---
 
 ## Configuration
 
