@@ -30,11 +30,7 @@ COPY --from=builder /app/target/release/scrob /app/scrob
 # Copy migrations
 COPY migrations ./migrations
 
-# Create data directory for SQLite database
-RUN mkdir -p /app/data
-
 # Set environment variables
-ENV DATABASE_URL=sqlite:/app/data/scrob.db
 ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV RUST_LOG=scrob=info

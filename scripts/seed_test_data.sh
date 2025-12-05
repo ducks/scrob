@@ -3,29 +3,21 @@ set -e
 
 # Seed test data: Creates a test user and adds sample scrobbles
 
-DATABASE_URL="${DATABASE_URL:-sqlite:./data/scrob.db}"
+DATABASE_URL="${DATABASE_URL:-postgres://scrob:scrob_password_change_me@localhost:5432/scrob}"
 API_URL="${API_URL:-http://localhost:3000}"
 
 echo "=== Scrob Test Data Seeder ==="
 echo ""
 
-# Check if database exists
-DB_PATH="${DATABASE_URL#sqlite:}"
-if [ ! -f "$DB_PATH" ]; then
-  echo "Error: Database not found at $DB_PATH"
-  echo "Run 'cargo sqlx migrate run' first"
-  exit 1
-fi
-
 # Create test user
 USERNAME="test"
 PASSWORD="test123"
-IS_ADMIN=1
+IS_ADMIN=true
 
 echo "Creating test user '$USERNAME'..."
 
 # Check if user already exists
-USER_EXISTS=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM users WHERE username = '$USERNAME';" 2>/dev/null || echo "0")
+USER_EXISTS=$(psql "$DATABASE_URL" -tAc "SELECT COUNT(*) FROM users WHERE username = '$USERNAME';" 2>/dev/null || echo "0")
 
 if [ "$USER_EXISTS" -gt 0 ]; then
   echo "User '$USERNAME' already exists, skipping creation"
@@ -33,7 +25,7 @@ else
   HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw(b'$PASSWORD', bcrypt.gensalt()).decode('utf-8'))")
   TIMESTAMP=$(date +%s)
 
-  sqlite3 "$DB_PATH" <<EOF
+  psql "$DATABASE_URL" <<EOF
 INSERT INTO users (username, password_hash, is_admin, created_at)
 VALUES ('$USERNAME', '$HASH', $IS_ADMIN, $TIMESTAMP);
 EOF

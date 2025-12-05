@@ -1,14 +1,33 @@
+version: '3.8'
+
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: scrob-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: scrob
+      POSTGRES_USER: scrob
+      POSTGRES_PASSWORD: scrob_password_change_me
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scrob"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   scrob:
     build: .
-    container_name: scrob
+    container_name: scrob-server
     restart: unless-stopped
     ports:
       - "3000:3000"
-    volumes:
-      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      - DATABASE_URL=sqlite:/app/data/scrob.db
+      - DATABASE_URL=postgres://scrob:scrob_password_change_me@postgres:5432/scrob
       - HOST=0.0.0.0
       - PORT=3000
       - RUST_LOG=scrob=info,tower_http=debug
@@ -18,3 +37,18 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  scrob-ui:
+    build: ../scrob-ui
+    container_name: scrob-ui
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      scrob:
+        condition: service_healthy
+    environment:
+      - VITE_API_URL=http://localhost:3000
+
+volumes:
+  postgres_data:
