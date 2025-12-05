@@ -1,6 +1,6 @@
 # scrob
 
-Self-hosted music scrobble server with GraphQL API.
+Self-hosted music scrobble server with REST API.
 
 **New to scrob?** Check out [QUICKSTART.md](QUICKSTART.md) for a step-by-step guide.
 
@@ -8,7 +8,7 @@ Self-hosted music scrobble server with GraphQL API.
 
 ## Features
 
-- GraphQL API for scrobble submission and statistics
+- REST API for scrobble submission and statistics
 - Token-based authentication
 - SQLite database (portable to Postgres)
 - Docker support
@@ -29,9 +29,7 @@ docker-compose logs -f
 docker-compose down
 ```
 
-The server will be available at `http://localhost:3000/graphql`.
-
-GraphQL Playground: `http://localhost:3000/playground`
+The server will be available at `http://localhost:3000`.
 
 ### Manual Docker Build
 
@@ -120,114 +118,72 @@ print(f'User {username} created')
 ./scripts/create_user.sh alice mypassword true
 ```
 
-### Using GraphQL
-
-Once you have at least one user, you can use the `login` mutation to get a token,
-then use `createApiToken` to create additional tokens.
-
-## GraphQL API
+## REST API
 
 ### Authentication
 
-```graphql
-mutation Login {
-  login(username: "alice", password: "mypassword") {
-    token
-    user {
-      id
-      username
-      isAdmin
-    }
-  }
-}
+```bash
+# Login and get token
+curl -X POST http://localhost:3000/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "alice", "password": "mypassword"}'
+
+# Response: {"token": "...", "username": "alice", "is_admin": false}
 ```
 
-Use the returned token in the `Authorization` header:
+Use the returned token in the `Authorization` header for all protected endpoints:
 ```
 Authorization: Bearer <token>
 ```
 
 ### Submit Scrobbles
 
-```graphql
-mutation Scrob {
-  scrob(input: {
-    artist: "Kendrick Lamar"
-    track: "Wesley's Theory"
-    album: "To Pimp a Butterfly"
-    duration: 287
-    timestamp: "2025-12-03T12:00:00Z"
-  }) {
-    id
-    artist
-    track
-  }
-}
-```
-
-### Batch Scrobbles
-
-```graphql
-mutation ScrobBatch {
-  scrobBatch(inputs: [
-    {
-      artist: "Pink Floyd"
-      track: "Time"
-      album: "The Dark Side of the Moon"
-      timestamp: "2025-12-03T11:00:00Z"
-    },
-    {
-      artist: "Pink Floyd"
-      track: "The Great Gig in the Sky"
-      album: "The Dark Side of the Moon"
-      timestamp: "2025-12-03T11:10:00Z"
-    }
-  ]) {
-    id
-    artist
-    track
-  }
-}
+```bash
+curl -X POST http://localhost:3000/scrob \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '[{
+    "artist": "Kendrick Lamar",
+    "track": "Wesley'\''s Theory",
+    "album": "To Pimp a Butterfly",
+    "duration": 287,
+    "timestamp": 1701619200
+  }]'
 ```
 
 ### Get Recent Scrobbles
 
-```graphql
-query RecentScrobs {
-  recentScrobs(limit: 20) {
-    id
-    artist
-    track
-    album
-    timestamp
-  }
-}
+```bash
+curl http://localhost:3000/recent?limit=20 \
+  -H "Authorization: Bearer <token>"
 ```
 
 ### Get Top Artists
 
-```graphql
-query TopArtists {
-  topArtists(limit: 10) {
-    name
-    count
-  }
-}
+```bash
+curl http://localhost:3000/top/artists?limit=10 \
+  -H "Authorization: Bearer <token>"
 ```
 
-### Create API Token
+### Get Top Tracks
 
-```graphql
-mutation CreateToken {
-  createApiToken(label: "my-music-player") {
-    id
-    label
-    token
-  }
-}
+```bash
+curl http://localhost:3000/top/tracks?limit=10 \
+  -H "Authorization: Bearer <token>"
 ```
 
-Note: The token value is only returned once on creation.
+### Now Playing
+
+```bash
+curl -X POST http://localhost:3000/now \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "artist": "Pink Floyd",
+    "track": "Time",
+    "album": "The Dark Side of the Moon"
+  }'
+```
 
 ## Integration with last-fm-rs
 
@@ -237,7 +193,7 @@ This server is designed to work with the [last-fm-rs](https://github.com/ducks/l
 use last_fm_rs::Client;
 
 let client = Client::with_token(
-  "http://localhost:3000/graphql",
+  "http://localhost:3000",
   "your-api-token"
 )?;
 

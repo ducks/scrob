@@ -41,8 +41,8 @@ It will prompt you for:
 - Admin status (y/N)
 - Whether to create an API token for a client
 
-The script outputs both a session token (for GraphQL Playground) and optionally
-an API token (for your music player).
+The script outputs both a session token and optionally an API token (for your
+music player).
 
 **Skip to Step 4** if you use this option!
 
@@ -100,19 +100,10 @@ EOF
 
 ## Step 3: Login and Get a Token
 
-Open GraphQL Playground at `http://localhost:3000/playground` and run:
-
-```graphql
-mutation Login {
-  login(username: "alice", password: "mypassword") {
-    token
-    user {
-      id
-      username
-      isAdmin
-    }
-  }
-}
+```bash
+curl -X POST http://localhost:3000/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "alice", "password": "mypassword"}'
 ```
 
 Copy the token from the response. It will look something like:
@@ -122,75 +113,46 @@ Copy the token from the response. It will look something like:
 
 ## Step 4: Use the Token
 
-### In GraphQL Playground
+### Test Authentication
 
-Click "HTTP HEADERS" at the bottom of the playground and add:
+```bash
+# Set your token
+export TOKEN="your-token-here"
 
-```json
-{
-  "Authorization": "Bearer YOUR_TOKEN_HERE"
-}
+# Get recent scrobbles (empty if you haven't scrobbled yet)
+curl http://localhost:3000/recent?limit=10 \
+  -H "Authorization: Bearer $TOKEN"
 ```
-
-Now you can make authenticated requests:
-
-```graphql
-query Me {
-  me {
-    id
-    username
-    isAdmin
-  }
-}
-```
-
-### Create Additional API Tokens
-
-For your music player or other clients:
-
-```graphql
-mutation CreateToken {
-  createApiToken(label: "my-music-player") {
-    id
-    label
-    token
-  }
-}
-```
-
-**Important**: The token value is only shown once! Copy it immediately.
 
 ## Step 5: Submit Your First Scrobble
 
-```graphql
-mutation FirstScrobble {
-  scrob(input: {
-    artist: "Pink Floyd"
-    track: "Time"
-    album: "The Dark Side of the Moon"
-    duration: 413
-    timestamp: "2025-12-03T12:00:00Z"
-  }) {
-    id
-    artist
-    track
-    timestamp
-  }
-}
+```bash
+curl -X POST http://localhost:3000/scrob \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '[{
+    "artist": "Pink Floyd",
+    "track": "Time",
+    "album": "The Dark Side of the Moon",
+    "duration": 413,
+    "timestamp": '$(date +%s)'
+  }]'
 ```
 
 ## Step 6: View Your Scrobbles
 
-```graphql
-query MyScrobbles {
-  recentScrobs(limit: 10) {
-    id
-    artist
-    track
-    album
-    timestamp
-  }
-}
+```bash
+# Recent scrobbles
+curl http://localhost:3000/recent?limit=10 \
+  -H "Authorization: Bearer $TOKEN"
+
+# Top artists
+curl http://localhost:3000/top/artists?limit=10 \
+  -H "Authorization: Bearer $TOKEN"
+
+# Top tracks
+curl http://localhost:3000/top/tracks?limit=10 \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Using with last-fm-rs Client
@@ -201,7 +163,7 @@ Once you have a token, you can use it with the Rust client:
 use last_fm_rs::Client;
 
 let client = Client::with_token(
-    "http://localhost:3000/graphql",
+    "http://localhost:3000",
     "your-api-token-here"
 )?;
 
@@ -211,21 +173,16 @@ client.scrobble(&scrobbles).await?;
 
 ## Creating Additional Users
 
-Once logged in as an admin user, you can create tokens for yourself, then use
-those tokens to create additional users programmatically, or continue using the
-Python/script method from Step 2.
+Once logged in, you can create additional users using the same methods from
+Step 2, or continue using the Python/script method.
 
 ## Troubleshooting
 
-### "Session key required" error
+### "Unauthorized" error
 You need to include the `Authorization: Bearer <token>` header.
 
 ### "Invalid username or password"
 Check the username and password are correct. Passwords are case-sensitive.
-
-### "Authentication required"
-The mutation/query requires a valid token. Make sure you've set the
-Authorization header.
 
 ### Server won't start
 - Check the database path exists
@@ -235,4 +192,5 @@ Authorization header.
 ### Can't create user
 - Ensure Python has bcrypt installed: `pip install bcrypt`
 - Check database file permissions
-- Verify database path is correct (./data/scrob.db for Docker, ./scrob.db for local)
+- Verify database path is correct (`./data/scrob.db` for Docker, `./scrob.db`
+  for local)
