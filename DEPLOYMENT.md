@@ -1,63 +1,29 @@
 # Deployment Guide
 
-## Quick Start with Docker (Recommended)
+## Quick Start with Docker Compose (Recommended)
 
 The easiest way to run scrob is with Docker Compose, which handles everything
-automatically.
+automatically including PostgreSQL, the server, and the UI.
 
 ### Prerequisites
 
 - Docker and Docker Compose installed
-- PostgreSQL database (see below)
 
 ### Setup
 
-1. **Set up PostgreSQL**
-
-Use Docker Compose to run both scrob and Postgres:
+1. **Start the full stack**
 
 ```bash
 cd ~/dev/scrob
-
-# Create docker-compose.yml (see example below)
-# Edit environment variables as needed
 docker-compose up -d
 ```
 
-Example `docker-compose.yml`:
+This will start:
+- PostgreSQL database on port 5432
+- Scrob server on port 3000
+- Scrob UI on port 8080
 
-```yaml
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: scrob
-      POSTGRES_USER: scrob
-      POSTGRES_PASSWORD: your_secure_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-  scrob:
-    build: .
-    environment:
-      DATABASE_URL: postgres://scrob:your_secure_password@postgres:5432/scrob
-      HOST: 0.0.0.0
-      PORT: 3000
-      RUST_LOG: scrob=info
-    ports:
-      - "3000:3000"
-    depends_on:
-      - postgres
-
-volumes:
-  postgres_data:
-```
-
-2. **Create your user**
+2. **Create your first user**
 
 ```bash
 # Get a shell in the scrob container
@@ -69,15 +35,25 @@ docker-compose exec scrob /bin/bash
 
 3. **Access scrob**
 
-Visit `http://localhost:3000` and login with your credentials.
+Visit `http://localhost:8080` and login with your credentials.
 
-That's it! Docker handles building, migrations, and running the service.
+That's it! Docker handles building, migrations, and running all services.
+
+### Configuration
+
+The default `docker-compose.yml` uses the password `scrob_password_change_me`.
+To change it:
+
+1. Edit `docker-compose.yml`
+2. Update `POSTGRES_PASSWORD` in the postgres service
+3. Update the password in `DATABASE_URL` in the scrob service
+4. Run `docker-compose down && docker-compose up -d`
 
 ---
 
-## Manual Installation (Alternative)
+## Manual Installation with systemd (Alternative)
 
-If you prefer to run without Docker, use the automated setup script:
+If you prefer to run without Docker, use the automated setup script.
 
 ### Prerequisites
 
@@ -105,7 +81,7 @@ See [scripts/install.sh](scripts/install.sh) for details.
 
 If you prefer to do it manually:
 
-### 1. Build the Server
+#### 1. Build the Server
 
 ```bash
 cd ~/dev/scrob
@@ -114,7 +90,7 @@ nix-shell --run "cargo build --release"
 
 The binary will be at `target/release/scrob`.
 
-### 2. Choose Installation Location
+#### 2. Choose Installation Location
 
 ```bash
 # Create application directory
@@ -124,54 +100,56 @@ sudo chown $USER:$USER /opt/scrob
 # Copy binary
 cp target/release/scrob /opt/scrob/
 
-# Create data directory
-mkdir -p /opt/scrob/data
-
 # Copy migrations
 cp -r migrations /opt/scrob/
+cp -r scripts /opt/scrob/
 ```
 
-### 3. Set Up Database
+#### 3. Set Up PostgreSQL
 
 ```bash
-cd /opt/scrob
-export DATABASE_URL="sqlite:./data/scrob.db"
+# Create database and user
+sudo -u postgres psql <<EOF
+CREATE DATABASE scrob;
+CREATE USER scrob WITH PASSWORD 'your_secure_password';
+GRANT ALL PRIVILEGES ON DATABASE scrob TO scrob;
+EOF
 
-# Run migrations (requires sqlx-cli)
+# Run migrations
+cd /opt/scrob
+export DATABASE_URL="postgres://scrob:your_secure_password@localhost:5432/scrob"
 sqlx migrate run
 ```
 
 If you don't have sqlx-cli installed:
 
 ```bash
-# Create empty database
-touch /opt/scrob/data/scrob.db
-
-# Run migrations manually
-sqlite3 /opt/scrob/data/scrob.db < migrations/001_init.sql
+psql "$DATABASE_URL" < migrations/001_init.sql
 ```
 
-### 4. Create Your User
+#### 4. Create Your User
 
 ```bash
-cd ~/dev/scrob
-nix-shell --run "DATABASE_URL=sqlite:/opt/scrob/data/scrob.db bash ./scripts/create_user.sh YOUR_USERNAME YOUR_PASSWORD true"
+cd /opt/scrob
+export DATABASE_URL="postgres://scrob:your_secure_password@localhost:5432/scrob"
+bash ./scripts/create_user.sh YOUR_USERNAME YOUR_PASSWORD true
 ```
 
-### 5. Create Systemd Service
+#### 5. Create Systemd Service
 
 Create `/etc/systemd/system/scrob.service`:
 
 ```ini
 [Unit]
 Description=Scrob Music Scrobble Server
-After=network.target
+After=network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
 Type=simple
 User=YOUR_USERNAME
 WorkingDirectory=/opt/scrob
-Environment="DATABASE_URL=sqlite:/opt/scrob/data/scrob.db"
+Environment="DATABASE_URL=postgres://scrob:your_secure_password@localhost:5432/scrob"
 Environment="HOST=127.0.0.1"
 Environment="PORT=3000"
 Environment="RUST_LOG=scrob=info"
@@ -183,9 +161,9 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-Replace `YOUR_USERNAME` with your actual username.
+Replace `YOUR_USERNAME` with your actual username and update the database password.
 
-### 6. Start the Service
+#### 6. Start the Service
 
 ```bash
 # Reload systemd
@@ -201,7 +179,7 @@ sudo systemctl start scrob
 sudo systemctl status scrob
 ```
 
-### 7. Test It Works
+#### 7. Test It Works
 
 ```bash
 # Check health endpoint
@@ -250,7 +228,10 @@ instead. You'll need:
 
 ### Web UI
 
-If you've built the UI:
+If using Docker Compose, the UI is automatically available at
+`http://localhost:8080`.
+
+For manual deployment:
 
 ```bash
 cd ~/dev/scrob-ui
@@ -268,6 +249,12 @@ Visit `http://localhost:8080` to access the UI.
 
 ### View Logs
 
+Docker:
+```bash
+docker-compose logs -f scrob
+```
+
+Systemd:
 ```bash
 # Recent logs
 sudo journalctl -u scrob -n 50
@@ -278,21 +265,41 @@ sudo journalctl -u scrob -f
 
 ### Restart Service
 
+Docker:
+```bash
+docker-compose restart scrob
+```
+
+Systemd:
 ```bash
 sudo systemctl restart scrob
 ```
 
 ### Backup Database
 
+Docker:
 ```bash
-# Simple backup
-cp /opt/scrob/data/scrob.db ~/scrob-backup-$(date +%Y%m%d).db
+# Backup PostgreSQL data
+docker-compose exec postgres pg_dump -U scrob scrob > scrob-backup-$(date +%Y%m%d).sql
+```
 
-# Or with systemd timer for automatic backups
+Systemd:
+```bash
+pg_dump -U scrob scrob > ~/scrob-backup-$(date +%Y%m%d).sql
 ```
 
 ### Update the Server
 
+Docker:
+```bash
+cd ~/dev/scrob
+git pull
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+Systemd:
 ```bash
 cd ~/dev/scrob
 git pull
@@ -304,53 +311,76 @@ sudo systemctl start scrob
 
 ### Check Database Size
 
+Docker:
 ```bash
-du -h /opt/scrob/data/scrob.db
+docker-compose exec postgres psql -U scrob -c "SELECT pg_size_pretty(pg_database_size('scrob'));"
 ```
 
-SQLite is very efficient. Even with thousands of scrobbles, the database
-should stay under a few MB.
+Systemd:
+```bash
+psql -U scrob -c "SELECT pg_size_pretty(pg_database_size('scrob'));"
+```
 
 ## Troubleshooting
 
 ### Service Won't Start
 
-Check logs:
+Docker:
+```bash
+docker-compose logs scrob
+```
+
+Systemd:
 ```bash
 sudo journalctl -u scrob -n 100 --no-pager
 ```
 
 Common issues:
-- Database file permissions (should be owned by your user)
+- Database connection failed (check `DATABASE_URL`)
 - Port already in use (check with `sudo lsof -i :3000`)
 - Migrations not run
 
 ### Can't Connect
 
-- Check service is running: `sudo systemctl status scrob`
+- Check service is running: `docker-compose ps` or `sudo systemctl status scrob`
 - Check port is listening: `sudo lsof -i :3000`
 - Check firewall rules if accessing from network
 
-### Database Locked Errors
+### Database Connection Errors
 
-SQLite doesn't handle concurrent writes well. If you see these:
-- Make sure only one scrob process is running
-- For multiple users, consider migrating to Postgres
+- Verify PostgreSQL is running
+- Check credentials in `DATABASE_URL`
+- Ensure database exists: `psql -U scrob -l`
+- Check PostgreSQL logs: `docker-compose logs postgres` or `sudo journalctl -u postgresql`
 
-## Future: VPS Deployment
+## VPS Deployment
 
 When you're ready to deploy to a VPS:
 
-1. Same systemd setup, but use a reverse proxy (Caddy/nginx)
-2. Set up HTTPS with Let's Encrypt
-3. Point your domain to the VPS
-4. Consider Postgres for better concurrent write handling
-5. Add rate limiting and security headers
-
-For now, local deployment is simpler and works great for personal use.
+1. Same Docker Compose setup works great
+2. Set up a reverse proxy (Caddy/nginx) for HTTPS
+3. Use Let's Encrypt for SSL certificates
+4. Point your domain to the VPS
+5. Update `VITE_API_URL` in scrob-ui to use your domain
+6. Add rate limiting and security headers
+7. Use strong PostgreSQL password
+8. Consider restricting PostgreSQL to localhost
 
 ## Uninstalling
 
+Docker:
+```bash
+# Stop and remove containers
+docker-compose down
+
+# Remove volumes (WARNING: deletes all data!)
+docker-compose down -v
+
+# Remove images
+docker rmi scrob_scrob scrob_scrob-ui
+```
+
+Systemd:
 ```bash
 # Stop and disable service
 sudo systemctl stop scrob

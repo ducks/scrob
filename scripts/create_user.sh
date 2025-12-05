@@ -11,22 +11,17 @@ USERNAME="$1"
 PASSWORD="$2"
 IS_ADMIN="${3:-false}"
 
-# Hash the password using bcrypt (requires bcrypt CLI tool)
-# Using cost 12 (bcrypt default)
+# Hash the password using bcrypt
 HASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw(b'$PASSWORD', bcrypt.gensalt()).decode('utf-8'))")
 
 TIMESTAMP=$(date +%s)
-IS_ADMIN_VAL=0
-if [ "$IS_ADMIN" = "true" ]; then
-  IS_ADMIN_VAL=1
-fi
 
 # Insert into database
-DATABASE_URL="${DATABASE_URL:-sqlite:./data/scrob.db}"
+DATABASE_URL="${DATABASE_URL:-postgres://scrob:scrob_password_change_me@localhost:5432/scrob}"
 
-sqlite3 "${DATABASE_URL#sqlite:}" <<EOF
+psql "$DATABASE_URL" <<EOF
 INSERT INTO users (username, password_hash, is_admin, created_at)
-VALUES ('$USERNAME', '$HASH', $IS_ADMIN_VAL, $TIMESTAMP);
+VALUES ('$USERNAME', '$HASH', $IS_ADMIN, $TIMESTAMP);
 EOF
 
 echo "User '$USERNAME' created successfully (admin: $IS_ADMIN)"
