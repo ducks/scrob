@@ -11,7 +11,7 @@ API for tracking music listening history.
 ### Tech Stack
 - **Language**: Rust (edition 2024)
 - **HTTP Server**: axum 0.8
-- **Database**: SQLite (via sqlx 0.7) with offline query checking
+- **Database**: PostgreSQL (via sqlx 0.7) with offline query checking
 - **Auth**: Token-based (Bearer tokens)
 - **Password Hashing**: bcrypt
 - **CORS**: tower-http CORS layer (permissive)
@@ -27,9 +27,9 @@ API for tracking music listening history.
    - All requests use `Authorization: Bearer <token>` header
    - Token validation happens via axum extractor (`AuthUser::from_headers`)
 
-3. **SQLite with portability**: Using SQLite for v1 simplicity, but SQL is
-   written to be portable to Postgres. All queries use sqlx macros for
-   compile-time checking.
+3. **PostgreSQL for production**: Using PostgreSQL for better concurrent write
+   handling and scalability. All queries use sqlx macros for compile-time
+   checking.
 
 4. **REST over GraphQL**: Simple REST endpoints for straightforward CRUD
    operations. No need for query complexity or introspection features.
@@ -74,8 +74,8 @@ src/
 
 ### Important: Type Annotations
 
-SQLite + sqlx requires explicit type annotations for NOT NULL fields that use
-AUTOINCREMENT. Use the `!` suffix to mark fields as NOT NULL:
+PostgreSQL + sqlx requires explicit type annotations for NOT NULL fields. Use
+the `!` suffix to mark fields as NOT NULL:
 
 ```rust
 sqlx::query_as!(
@@ -98,11 +98,13 @@ The `.sqlx/` directory contains query metadata for offline compilation. This
 was generated with:
 
 ```bash
-export DATABASE_URL="sqlite:scrob.db"
+export DATABASE_URL="postgres://localhost/scrob"
 cargo sqlx prepare
 ```
 
 Commit `.sqlx/` to version control to allow builds without a database.
+
+See [POSTGRES_SETUP.md](POSTGRES_SETUP.md) for PostgreSQL setup instructions.
 
 ## Authentication Flow
 
@@ -120,6 +122,9 @@ Commit `.sqlx/` to version control to allow builds without a database.
      -H "Content-Type: application/json" \
      -d '{"username": "alice", "password": "pass"}'
    ```
+
+Note: The bootstrap script still references GraphQL and needs updating for REST
+API.
 
 3. Response contains token, username, and admin status.
 
@@ -293,10 +298,15 @@ cargo build --release
 
 ### Environment Variables
 
-- `DATABASE_URL` - SQLite path (default: `sqlite:scrob.db`)
+- `DATABASE_URL` - Postgres connection (default: `postgres://localhost/scrob`)
 - `HOST` - Bind address (default: `127.0.0.1`, use `0.0.0.0` for Docker)
 - `PORT` - Port number (default: `3000`)
 - `RUST_LOG` - Logging (default: `scrob=info`)
+
+For production with SSL:
+```bash
+DATABASE_URL="postgres://user:pass@host:5432/scrob?sslmode=require"
+```
 
 ## Known Limitations / Future Work
 
@@ -314,8 +324,8 @@ cargo build --release
 
 5. **No bulk operations**: No bulk delete, bulk update, etc.
 
-6. **SQLite limitations**: No concurrent writes (though reads are fine). For
-   high-traffic deployments, migrate to Postgres.
+6. **Connection pooling**: Configure max connections via environment variables
+   for high-traffic deployments.
 
 ### Future Enhancements
 
@@ -334,7 +344,8 @@ cargo build --release
 
 6. **Artist/Album metadata**: Fetch from MusicBrainz or similar.
 
-7. **Postgres support**: Add feature flag for Postgres vs SQLite.
+7. **SQLite support**: Add feature flag for SQLite option (currently Postgres
+   only).
 
 8. **Rate limiting**: Prevent abuse of the API.
 

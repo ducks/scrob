@@ -1,6 +1,6 @@
 use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 use crate::auth::{generate_token, verify_password};
 
@@ -23,14 +23,14 @@ pub struct ErrorResponse {
 }
 
 pub async fn login(
-    State(pool): State<SqlitePool>,
+    State(pool): State<PgPool>,
     Json(req): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, Json<ErrorResponse>)> {
     let user = sqlx::query!(
         r#"
         SELECT id as "id!", username, password_hash, is_admin as "is_admin: bool"
         FROM users
-        WHERE username = ?
+        WHERE username = $1
         "#,
         req.username
     )
@@ -76,7 +76,7 @@ pub async fn login(
     sqlx::query!(
         r#"
         INSERT INTO api_tokens (user_id, token, label, created_at, revoked)
-        VALUES (?, ?, 'session', ?, 0)
+        VALUES ($1, $2, 'session', $3, false)
         "#,
         user.id,
         token,

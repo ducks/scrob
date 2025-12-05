@@ -1,6 +1,6 @@
 use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 use crate::auth::AuthUser;
 
@@ -40,7 +40,7 @@ pub struct ErrorResponse {
 
 pub async fn now_playing(
     headers: axum::http::HeaderMap,
-    State(pool): State<SqlitePool>,
+    State(pool): State<PgPool>,
     Json(req): Json<NowPlayingRequest>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     let user = AuthUser::from_headers(&pool, &headers).await
@@ -58,7 +58,7 @@ pub async fn now_playing(
 
 pub async fn scrobble(
     headers: axum::http::HeaderMap,
-    State(pool): State<SqlitePool>,
+    State(pool): State<PgPool>,
     Json(scrobbles): Json<Vec<ScrobbleRequest>>,
 ) -> Result<Json<Vec<ScrobbleResponse>>, (StatusCode, Json<ErrorResponse>)> {
     let user = AuthUser::from_headers(&pool, &headers).await
@@ -76,7 +76,8 @@ pub async fn scrobble(
         let result = sqlx::query!(
             r#"
             INSERT INTO scrobs (user_id, artist, track, album, duration, timestamp, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id
             "#,
             user.id,
             scrob.artist,
@@ -86,7 +87,7 @@ pub async fn scrobble(
             timestamp,
             now
         )
-        .execute(&pool)
+        .fetch_one(&pool)
         .await
         .map_err(|e| {
             (
@@ -97,7 +98,7 @@ pub async fn scrobble(
             )
         })?;
 
-        let scrob_id = result.last_insert_rowid();
+        let scrob_id = result.id;
 
         tracing::info!(
             "Scrobbled for user {}: {} - {} (id: {})",

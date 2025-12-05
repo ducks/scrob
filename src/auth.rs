@@ -47,7 +47,7 @@ pub async fn get_user_by_token(pool: &DbPool, token: &str) -> Result<Option<User
     r#"
     SELECT user_id as "user_id!"
     FROM api_tokens
-    WHERE token = ? AND revoked = 0
+    WHERE token = $1 AND revoked = false
     "#,
     token
   )
@@ -63,8 +63,8 @@ pub async fn get_user_by_token(pool: &DbPool, token: &str) -> Result<Option<User
   sqlx::query!(
     r#"
     UPDATE api_tokens
-    SET last_used_at = ?
-    WHERE token = ?
+    SET last_used_at = $1
+    WHERE token = $2
     "#,
     now,
     token
@@ -78,7 +78,7 @@ pub async fn get_user_by_token(pool: &DbPool, token: &str) -> Result<Option<User
     r#"
     SELECT id as "id!", username, password_hash, is_admin as "is_admin: bool", created_at as "created_at!"
     FROM users
-    WHERE id = ?
+    WHERE id = $1
     "#,
     user_id
   )
