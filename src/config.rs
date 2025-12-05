@@ -10,7 +10,7 @@ pub struct Config {
 impl Config {
   pub fn from_env() -> Result<Self, String> {
     let database_url = env::var("DATABASE_URL")
-      .unwrap_or_else(|_| "sqlite:scrob.db".to_string());
+      .unwrap_or_else(|_| "postgres://localhost/scrob".to_string());
 
     let port = env::var("PORT")
       .unwrap_or_else(|_| "3000".to_string())

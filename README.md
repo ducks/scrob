@@ -10,7 +10,7 @@ Self-hosted music scrobble server with REST API.
 
 - REST API for scrobble submission and statistics
 - Token-based authentication
-- SQLite database (portable to Postgres)
+- PostgreSQL database
 - Docker support
 - Compatible with last-fm-rs client library
 
@@ -50,29 +50,50 @@ docker run -d \
 ### Prerequisites
 
 - Rust 1.82+
-- SQLite3
-- sqlx-cli: `cargo install sqlx-cli --no-default-features --features sqlite`
+- PostgreSQL 12+
+- sqlx-cli: `cargo install sqlx-cli --no-default-features --features postgres`
 
 ### Setup
 
 ```bash
+# Create PostgreSQL database
+createdb scrob
+
+# Or with custom user:
+# createuser -P scrob
+# createdb -O scrob scrob
+
 # Install dependencies
 cargo build
 
 # Run migrations
-export DATABASE_URL="sqlite:scrob.db"
+export DATABASE_URL="postgres://localhost/scrob"
 cargo sqlx migrate run
 
 # Start server
 cargo run
 ```
 
+See [POSTGRES_SETUP.md](POSTGRES_SETUP.md) for detailed PostgreSQL setup instructions.
+
 ### Environment Variables
 
-- `DATABASE_URL` - Database connection string (default: `sqlite:scrob.db`)
+- `DATABASE_URL` - Database connection string (default: `postgres://localhost/scrob`)
 - `HOST` - Bind address (default: `127.0.0.1`)
 - `PORT` - Port number (default: `3000`)
 - `RUST_LOG` - Logging level (default: `scrob=info`)
+
+Example DATABASE_URL formats:
+```bash
+# Local development
+postgres://localhost/scrob
+
+# With authentication
+postgres://scrob:password@localhost/scrob
+
+# Remote with SSL
+postgres://user:pass@host:5432/scrob?sslmode=require
+```
 
 ## Creating Users
 
@@ -90,20 +111,21 @@ This handles everything for you and outputs the tokens you need.
 
 ```bash
 python3 -c "
-import sqlite3
+import psycopg2
 import bcrypt
 import time
 
 username = 'alice'
 password = 'mypassword'
-is_admin = 1  # 1 for admin, 0 for regular user
+is_admin = True
 
 hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 timestamp = int(time.time())
 
-conn = sqlite3.connect('./data/scrob.db')
-conn.execute(
-    'INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?)',
+conn = psycopg2.connect('dbname=scrob user=scrob')
+cur = conn.cursor()
+cur.execute(
+    'INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (%s, %s, %s, %s)',
     (username, hash, is_admin, timestamp)
 )
 conn.commit()

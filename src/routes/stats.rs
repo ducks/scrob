@@ -1,6 +1,6 @@
 use axum::{extract::{Query, State}, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 use crate::auth::AuthUser;
 
@@ -43,7 +43,7 @@ pub struct ErrorResponse {
 
 pub async fn recent_scrobbles(
     headers: axum::http::HeaderMap,
-    State(pool): State<SqlitePool>,
+    State(pool): State<PgPool>,
     Query(query): Query<RecentScrobsQuery>,
 ) -> Result<Json<Vec<Scrob>>, (StatusCode, Json<ErrorResponse>)> {
     let user = AuthUser::from_headers(&pool, &headers).await
@@ -55,9 +55,9 @@ pub async fn recent_scrobbles(
         r#"
         SELECT id as "id!", artist, track, album, timestamp as "timestamp!"
         FROM scrobs
-        WHERE user_id = ?
+        WHERE user_id = $1
         ORDER BY timestamp DESC
-        LIMIT ?
+        LIMIT $2
         "#,
         user.id,
         limit
@@ -78,7 +78,7 @@ pub async fn recent_scrobbles(
 
 pub async fn top_artists(
     headers: axum::http::HeaderMap,
-    State(pool): State<SqlitePool>,
+    State(pool): State<PgPool>,
     Query(query): Query<TopQuery>,
 ) -> Result<Json<Vec<TopArtist>>, (StatusCode, Json<ErrorResponse>)> {
     let user = AuthUser::from_headers(&pool, &headers).await
@@ -90,10 +90,10 @@ pub async fn top_artists(
         r#"
         SELECT artist as name, COUNT(*) as "count!: i64"
         FROM scrobs
-        WHERE user_id = ?
+        WHERE user_id = $1
         GROUP BY artist
         ORDER BY COUNT(*) DESC
-        LIMIT ?
+        LIMIT $2
         "#,
         user.id,
         limit
@@ -114,7 +114,7 @@ pub async fn top_artists(
 
 pub async fn top_tracks(
     headers: axum::http::HeaderMap,
-    State(pool): State<SqlitePool>,
+    State(pool): State<PgPool>,
     Query(query): Query<TopQuery>,
 ) -> Result<Json<Vec<TopTrack>>, (StatusCode, Json<ErrorResponse>)> {
     let user = AuthUser::from_headers(&pool, &headers).await
@@ -126,10 +126,10 @@ pub async fn top_tracks(
         r#"
         SELECT artist as "artist!", track as "track!", COUNT(*) as "count!: i64"
         FROM scrobs
-        WHERE user_id = ?
+        WHERE user_id = $1
         GROUP BY artist, track
         ORDER BY COUNT(*) DESC
-        LIMIT ?
+        LIMIT $2
         "#,
         user.id,
         limit
