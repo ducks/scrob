@@ -40,6 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build router
     let app = Router::new()
         // Auth
+        .route("/signup", post(routes::signup))
         .route("/login", post(routes::login))
         // Scrobbling
         .route("/now", post(routes::now_playing))
