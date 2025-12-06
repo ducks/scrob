@@ -1,5 +1,7 @@
 # Build stage
-FROM rust:1.83 as builder
+# Using nightly temporarily due to edition2024 in some dependencies (home, base64ct)
+# TODO: Switch back to stable rust:1.84+ when edition2024 is stabilized
+FROM rustlang/rust:nightly as builder
 
 WORKDIR /app
 
@@ -11,7 +13,8 @@ COPY src ./src
 COPY migrations ./migrations
 COPY .sqlx ./.sqlx
 
-# Build release binary
+# Build release binary (sqlx will run queries offline mode using cache if present)
+ENV SQLX_OFFLINE=true
 RUN cargo build --release
 
 # Runtime stage

@@ -8,8 +8,8 @@ pkgs.mkShell {
     rustfmt
     clippy
 
-    # SQLite
-    sqlite
+    # PostgreSQL client
+    postgresql
 
     # SQLx CLI for migrations
     sqlx-cli
@@ -29,7 +29,7 @@ pkgs.mkShell {
   ];
 
   shellHook = ''
-    export DATABASE_URL="sqlite:scrob.db"
+    export DATABASE_URL="postgres://scrob:scrob_password_change_me@localhost:5432/scrob"
     export RUST_LOG="scrob=debug,tower_http=debug"
 
     echo "Scrob development environment loaded"
@@ -42,6 +42,6 @@ pkgs.mkShell {
     echo "  ./scripts/create_user.sh <user> <pass> [admin] - Create user"
     echo ""
     echo "Server will run on http://127.0.0.1:3000"
-    echo "GraphQL Playground: http://127.0.0.1:3000/playground"
+    echo "REST API endpoints available - see README for details"
   '';
 }
