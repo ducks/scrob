@@ -49,6 +49,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/recent", get(routes::recent_scrobbles))
         .route("/top/artists", get(routes::top_artists))
         .route("/top/tracks", get(routes::top_tracks))
+        // Admin
+        .route("/admin/users", get(routes::list_users))
+        .route("/admin/users/{id}", get(routes::get_user))
+        .route("/admin/users/{id}", axum::routing::delete(routes::delete_user))
+        .route("/admin/users/{id}/admin", post(routes::toggle_admin))
+        .route("/admin/stats", get(routes::get_stats))
+        .route("/admin/scrobbles/{id}", axum::routing::delete(routes::delete_scrobble))
         // Health check
         .route("/health", get(health_check))
         .layer(CorsLayer::permissive())
