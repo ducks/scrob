@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: scrob-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: scrob
+      POSTGRES_USER: scrob
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scrob"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scrob-network
+
+  scrob:
+    build: .
+    container_name: scrob-server
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://scrob:${POSTGRES_PASSWORD}@postgres:5432/scrob
+      - HOST=0.0.0.0
+      - PORT=3000
+      - RUST_LOG=${RUST_LOG:-scrob=info}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - scrob-network
+
+volumes:
+  postgres_data:
+
+networks:
+  scrob-network:
+    driver: bridge
