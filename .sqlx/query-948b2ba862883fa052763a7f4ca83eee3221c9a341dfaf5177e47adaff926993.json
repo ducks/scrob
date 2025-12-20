@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            u.id as \"id!\",\n            u.username,\n            u.is_admin as \"is_admin: bool\",\n            u.created_at as \"created_at!\",\n            COUNT(s.id) as \"scrobble_count!\"\n        FROM users u\n        LEFT JOIN scrobs s ON u.id = s.user_id\n        GROUP BY u.id, u.username, u.is_admin, u.created_at\n        ORDER BY u.created_at DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "is_admin: bool",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "scrobble_count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "948b2ba862883fa052763a7f4ca83eee3221c9a341dfaf5177e47adaff926993"
+}

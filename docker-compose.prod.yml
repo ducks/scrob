@@ -17,7 +17,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - scrob-network
+      - scrob
 
   scrob:
     build: .
@@ -40,11 +40,11 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - scrob-network
+      - scrob
+
+networks:
+  scrob:
+    driver: bridge
 
 volumes:
   postgres_data:
-
-networks:
-  scrob-network:
-    driver: bridge

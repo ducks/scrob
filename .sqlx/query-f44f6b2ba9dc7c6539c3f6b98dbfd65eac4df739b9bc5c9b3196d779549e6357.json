@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n    SELECT user_id as \"user_id!\"\n    FROM api_tokens\n    WHERE token = $1 AND revoked = false\n    ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f44f6b2ba9dc7c6539c3f6b98dbfd65eac4df739b9bc5c9b3196d779549e6357"
+}
