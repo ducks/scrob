@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT artist as name, COUNT(*) as \"count!: i64\"\n        FROM scrobs\n        WHERE user_id = $1\n        GROUP BY artist\n        ORDER BY COUNT(*) DESC\n        LIMIT $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "count!: i64",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "16e0a5ba5cdbb9c651d6fdf40d91eb94dffe81dc6789bc0a3df550ae211434bc"
+}

@@ -42,7 +42,7 @@ docker compose -f docker-compose.prod.yml logs -f
 
 ```bash
 # Run the bootstrap script inside the container
-docker compose -f docker-compose.prod.yml exec scrob ./scripts/bootstrap.sh
+docker compose -f docker-compose.prod.yml exec scrob-server ./scripts/bootstrap.sh
 ```
 
 Follow the prompts to create a user and get your API token.
@@ -54,7 +54,7 @@ Follow the prompts to create a user and get your API token.
 docker compose -f docker-compose.prod.yml ps
 
 # View logs
-docker compose -f docker-compose.prod.yml logs -f scrob
+docker compose -f docker-compose.prod.yml logs -f scrob-server
 
 # Restart services
 docker compose -f docker-compose.prod.yml restart

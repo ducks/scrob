@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            u.username,\n            COUNT(s.id) as \"scrobble_count!\"\n        FROM users u\n        LEFT JOIN scrobs s ON u.id = s.user_id\n        GROUP BY u.id, u.username\n        HAVING COUNT(s.id) > 0\n        ORDER BY COUNT(s.id) DESC\n        LIMIT 10\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "scrobble_count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "38ae3760b11778a006eb1edec7c0e3fca961f38fd519328864bea3acc5e19975"
+}

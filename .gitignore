@@ -6,7 +6,6 @@
 *.db-shm
 *.db-wal
 data/
-.sqlx
 
 # Environment
 .env

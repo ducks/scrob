@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id as \"id!\", artist, track, album, timestamp as \"timestamp!\"\n        FROM scrobs\n        WHERE user_id = $1\n        ORDER BY timestamp DESC\n        LIMIT $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "artist",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "track",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "album",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "timestamp!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "4f1d1df0989ddc4a42808385831b9bea4dd79dc1a2e93aa0df958c226633c843"
+}
