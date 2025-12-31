@@ -1,6 +1,6 @@
 [package]
 name = "scrob"
-version = "20251222.0.0"
+version = "20251231.0.0"
 edition = "2021"
 authors = ["Jake Goldsborough"]
 
