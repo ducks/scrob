@@ -49,6 +49,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/recent", get(routes::recent_scrobbles))
         .route("/top/artists", get(routes::top_artists))
         .route("/top/tracks", get(routes::top_tracks))
+        // Public user profiles
+        .route("/users/:username/recent", get(routes::user_recent_scrobbles))
+        .route("/users/:username/top/artists", get(routes::user_top_artists))
+        .route("/users/:username/top/tracks", get(routes::user_top_tracks))
+        // Settings
+        .route("/settings/privacy", get(routes::get_privacy))
+        .route("/settings/privacy", post(routes::update_privacy))
         // Admin
         .route("/admin/users", get(routes::list_users))
         .route("/admin/users/{id}", get(routes::get_user))
