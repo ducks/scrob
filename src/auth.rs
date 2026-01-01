@@ -7,6 +7,7 @@ pub struct AuthUser {
     pub id: i64,
     pub username: String,
     pub is_admin: bool,
+    pub is_private: bool,
 }
 
 impl AuthUser {
@@ -27,6 +28,7 @@ impl AuthUser {
             id: user.id,
             username: user.username,
             is_admin: user.is_admin,
+            is_private: user.is_private,
         })
     }
 }
@@ -76,7 +78,7 @@ pub async fn get_user_by_token(pool: &DbPool, token: &str) -> Result<Option<User
   let user = sqlx::query_as!(
     User,
     r#"
-    SELECT id as "id!", username, password_hash, is_admin as "is_admin: bool", created_at as "created_at!"
+    SELECT id as "id!", username, password_hash, is_admin as "is_admin: bool", is_private as "is_private: bool", created_at as "created_at!"
     FROM users
     WHERE id = $1
     "#,

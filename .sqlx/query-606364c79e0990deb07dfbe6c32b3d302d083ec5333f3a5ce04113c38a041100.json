@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n    SELECT id as \"id!\", username, password_hash, is_admin as \"is_admin: bool\", created_at as \"created_at!\"\n    FROM users\n    WHERE id = $1\n    ",
+  "query": "SELECT * FROM users WHERE username = $1",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id!",
+        "name": "id",
         "type_info": "Int8"
       },
       {
@@ -20,18 +20,23 @@
       },
       {
         "ordinal": 3,
-        "name": "is_admin: bool",
+        "name": "is_admin",
         "type_info": "Bool"
       },
       {
         "ordinal": 4,
-        "name": "created_at!",
+        "name": "created_at",
         "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "is_private",
+        "type_info": "Bool"
       }
     ],
     "parameters": {
       "Left": [
-        "Int8"
+        "Text"
       ]
     },
     "nullable": [
@@ -39,8 +44,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "607344f5ce1c15c1b3650f290a9e13fffefb2caee9f55d84cc903be3fe8848b2"
+  "hash": "606364c79e0990deb07dfbe6c32b3d302d083ec5333f3a5ce04113c38a041100"
 }
