@@ -1,8 +1,8 @@
-use axum::{extract::{Query, State}, http::StatusCode, Json};
+use axum::{extract::{Path, Query, State}, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
-use crate::auth::AuthUser;
+use crate::{auth::AuthUser, db::models::User};
 
 #[derive(Debug, Deserialize)]
 pub struct RecentScrobsQuery {
@@ -119,6 +119,214 @@ pub async fn top_tracks(
 ) -> Result<Json<Vec<TopTrack>>, (StatusCode, Json<ErrorResponse>)> {
     let user = AuthUser::from_headers(&pool, &headers).await
         .map_err(|status| (status, Json(ErrorResponse { error: "Unauthorized".to_string() })))?;
+    let limit = query.limit.unwrap_or(10).min(100);
+
+    let tracks = sqlx::query_as!(
+        TopTrack,
+        r#"
+        SELECT artist as "artist!", track as "track!", COUNT(*) as "count!: i64"
+        FROM scrobs
+        WHERE user_id = $1
+        GROUP BY artist, track
+        ORDER BY COUNT(*) DESC
+        LIMIT $2
+        "#,
+        user.id,
+        limit
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    Ok(Json(tracks))
+}
+
+// Public user profile endpoints
+
+pub async fn user_recent_scrobbles(
+    Path(username): Path<String>,
+    State(pool): State<PgPool>,
+    Query(query): Query<RecentScrobsQuery>,
+) -> Result<Json<Vec<Scrob>>, (StatusCode, Json<ErrorResponse>)> {
+    // Look up user by username
+    let user = sqlx::query_as!(
+        User,
+        "SELECT * FROM users WHERE username = $1",
+        username
+    )
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?
+    .ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "User not found".to_string(),
+            }),
+        )
+    })?;
+
+    // Check if profile is private
+    if user.is_private {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "This user's profile is private".to_string(),
+            }),
+        ));
+    }
+
+    let limit = query.limit.unwrap_or(20).min(100);
+
+    let scrobs = sqlx::query_as!(
+        Scrob,
+        r#"
+        SELECT id as "id!", artist, track, album, timestamp as "timestamp!"
+        FROM scrobs
+        WHERE user_id = $1
+        ORDER BY timestamp DESC
+        LIMIT $2
+        "#,
+        user.id,
+        limit
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    Ok(Json(scrobs))
+}
+
+pub async fn user_top_artists(
+    Path(username): Path<String>,
+    State(pool): State<PgPool>,
+    Query(query): Query<TopQuery>,
+) -> Result<Json<Vec<TopArtist>>, (StatusCode, Json<ErrorResponse>)> {
+    // Look up user by username
+    let user = sqlx::query_as!(
+        User,
+        "SELECT * FROM users WHERE username = $1",
+        username
+    )
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?
+    .ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "User not found".to_string(),
+            }),
+        )
+    })?;
+
+    // Check if profile is private
+    if user.is_private {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "This user's profile is private".to_string(),
+            }),
+        ));
+    }
+
+    let limit = query.limit.unwrap_or(10).min(100);
+
+    let artists = sqlx::query_as!(
+        TopArtist,
+        r#"
+        SELECT artist as name, COUNT(*) as "count!: i64"
+        FROM scrobs
+        WHERE user_id = $1
+        GROUP BY artist
+        ORDER BY COUNT(*) DESC
+        LIMIT $2
+        "#,
+        user.id,
+        limit
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    Ok(Json(artists))
+}
+
+pub async fn user_top_tracks(
+    Path(username): Path<String>,
+    State(pool): State<PgPool>,
+    Query(query): Query<TopQuery>,
+) -> Result<Json<Vec<TopTrack>>, (StatusCode, Json<ErrorResponse>)> {
+    // Look up user by username
+    let user = sqlx::query_as!(
+        User,
+        "SELECT * FROM users WHERE username = $1",
+        username
+    )
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        )
+    })?
+    .ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "User not found".to_string(),
+            }),
+        )
+    })?;
+
+    // Check if profile is private
+    if user.is_private {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(ErrorResponse {
+                error: "This user's profile is private".to_string(),
+            }),
+        ));
+    }
+
     let limit = query.limit.unwrap_or(10).min(100);
 
     let tracks = sqlx::query_as!(
