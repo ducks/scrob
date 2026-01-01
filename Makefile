@@ -1,4 +1,4 @@
-.PHONY: help version-bump release build test clean
+.PHONY: help version-bump release build test clean prepare prepare-cleanup
 
 # Extract version from command line if passed as argument
 # Supports: make release 0.2.0 OR make release VERSION=0.2.0
@@ -16,6 +16,8 @@ help:
 	@echo "  make build                         - Build release binary"
 	@echo "  make test                          - Run tests"
 	@echo "  make clean                         - Clean build artifacts"
+	@echo "  make prepare                       - Update sqlx query cache (uses local postgres)"
+	@echo "  make prepare-cleanup               - Stop and remove local postgres container"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make version-bump 0.2.0            - Creates branch and bumps version"
@@ -80,3 +82,32 @@ clippy:
 # Clean build artifacts
 clean:
 	cargo clean
+
+# Update sqlx query cache using local postgres
+prepare:
+	@echo "Starting local postgres container..."
+	@docker rm -f scrob-postgres 2>/dev/null || true
+	@docker run -d --name scrob-postgres \
+		-e POSTGRES_PASSWORD=scrob \
+		-e POSTGRES_USER=scrob \
+		-e POSTGRES_DB=scrob \
+		-p 5433:5432 \
+		postgres:16-alpine
+	@echo "Waiting for postgres to be ready..."
+	@sleep 3
+	@docker exec scrob-postgres pg_isready -U scrob || (sleep 2 && docker exec scrob-postgres pg_isready -U scrob)
+	@echo "Running migrations..."
+	@DATABASE_URL="postgres://scrob:scrob@localhost:5433/scrob" cargo sqlx migrate run
+	@echo "Preparing sqlx query cache..."
+	@DATABASE_URL="postgres://scrob:scrob@localhost:5433/scrob" cargo sqlx prepare
+	@echo "Stopping postgres container..."
+	@docker rm -f scrob-postgres
+	@echo ""
+	@echo "✓ Query cache updated in .sqlx/"
+	@echo "✓ Remember to commit the updated .sqlx files"
+
+# Stop and remove local postgres container
+prepare-cleanup:
+	@echo "Stopping and removing postgres container..."
+	@docker rm -f scrob-postgres 2>/dev/null || true
+	@echo "✓ Cleanup complete"

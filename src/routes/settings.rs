@@ -56,6 +56,6 @@ pub async fn get_privacy(
         .map_err(|status| (status, Json(ErrorResponse { error: "Unauthorized".to_string() })))?;
 
     Ok(Json(PrivacyResponse {
-        is_private: user.user.is_private,
+        is_private: user.is_private,
     }))
 }
